@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "hardmod",
+  "version": "${version}",
+  "name": "HardMod",
+  "description": "Utilidades server-side para endurecer el mundo: mobcap, mesa de encantamientos, aldeanos, encantamientos de tridente, recompensas de trial chambers y anuncios de cambios.",
+  "authors": ["nahv"],
+  "entrypoints": {
+    "main": [
+      { "adapter": "kotlin", "value": "com.hardmod.HardMod" }
+    ]
+  },
+  "mixins": ["hardmod.mixins.json"],
+  "depends": {
+    "fabricloader": ">=0.19.3",
+    "fabric-api": "*",
+    "fabric-language-kotlin": ">=1.13.12",
+    "minecraft": "26.2"
+  }
+}
