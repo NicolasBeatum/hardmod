@@ -5,7 +5,9 @@ plugins {
     kotlin("jvm") version "2.4.0" // debe coincidir con el Kotlin que bundlea FLK (ver gradle.properties)
 }
 
-version = property("mod_version") as String
+// CI (mod-build.yml) compila con -Phd_version=<hash-corto-del-commit> para builds
+// continuos por commit; sin ese flag (build local), se usa mod_version de gradle.properties.
+version = (findProperty("hd_version") as String?) ?: (property("mod_version") as String)
 group = property("maven_group") as String
 
 repositories {
