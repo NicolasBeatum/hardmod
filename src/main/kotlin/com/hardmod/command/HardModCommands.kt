@@ -3,6 +3,7 @@ package com.hardmod.command
 import com.hardmod.announce.Announcer
 import com.hardmod.announce.MessagePresets
 import com.hardmod.config.HardModConfig
+import com.hardmod.feature.BossArenaCompass
 import com.hardmod.feature.EnchantTableLock
 import com.hardmod.feature.PvpScheduler
 import com.hardmod.feature.ServerShutdownScheduler
@@ -112,6 +113,10 @@ object HardModCommands {
                             )
                     )
                     .then(
+                        Commands.literal("arenas")
+                            .then(Commands.literal("reload").executes(::reloadArenas))
+                    )
+                    .then(
                         Commands.literal("rewards")
                             .then(Commands.literal("normal").executes { openRewards(it, "minecraft:chests/trial_chambers/reward") })
                             .then(Commands.literal("ominous").executes { openRewards(it, "minecraft:chests/trial_chambers/reward_ominous") })
@@ -215,6 +220,12 @@ object HardModCommands {
         val minutes = IntegerArgumentType.getInteger(ctx, "minutos")
         val newTarget = ServerShutdownScheduler.extend(minutes)
         ctx.source.sendSuccess({ Component.literal("Cierre del servidor extendido: ahora cierra a las $newTarget.") }, true)
+        return 1
+    }
+
+    private fun reloadArenas(ctx: CommandContext<CommandSourceStack>): Int {
+        val count = BossArenaCompass.reload()
+        ctx.source.sendSuccess({ Component.literal("Brujula de boss: $count arena(s) recargadas desde disco.") }, true)
         return 1
     }
 

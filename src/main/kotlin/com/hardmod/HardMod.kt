@@ -3,6 +3,7 @@ package com.hardmod
 import com.hardmod.announce.MessagePresets
 import com.hardmod.command.HardModCommands
 import com.hardmod.config.HardModConfig
+import com.hardmod.feature.BossArenaCompass
 import com.hardmod.feature.DimensionLock
 import com.hardmod.feature.EnchantTableLock
 import com.hardmod.feature.LivesEliminationAnnouncer
@@ -30,6 +31,7 @@ object HardMod : ModInitializer {
         PvpScheduler.register()
         ServerShutdownScheduler.register()
         LivesEliminationAnnouncer.register()
+        BossArenaCompass.register()
         TrialRewardLootModifier.register()
         HardModCommands.register()
 
