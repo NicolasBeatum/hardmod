@@ -12,17 +12,22 @@ import net.minecraft.world.phys.AABB
 import net.minecraft.world.phys.Vec3
 import org.slf4j.LoggerFactory
 import java.nio.file.Files
+import java.util.UUID
 
 /**
  * Brujula hacia el boss de una arena de hard-death-mobs-mod -- SIN tocar
  * ese mod para nada. Lee directamente los archivos que ese mod ya escribe
  * en disco (config/harddeathmobs/arenas/, archivos .json, solo lectura) para saber
- * el "setpos" (x,y,z) de cada arena, y detecta que una pelea esta en
- * curso observando el mundo: si hay algun ser vivo con nombre
- * personalizado visible cerca de esa posicion (asi es como ese mod marca
- * a sus bosses y minions, y a nadie mas), la arena esta activa y se
- * muestra la brujula (ver BossCompassSidebar); si no queda ninguno, la
- * pelea termino y se oculta.
+ * el "setpos" (x,y,z) de cada arena, y DETECTA el inicio de la pelea
+ * observando el mundo cerca de esa posicion: si aparece algun ser vivo con
+ * nombre personalizado visible (asi es como ese mod marca a sus bosses y
+ * minions, y a nadie mas), la arena arranco.
+ *
+ * Una vez detectada, deja de importar la distancia al setpos -- se seguie
+ * a esas entidades puntuales por su UUID (el boss se puede alejar del
+ * spawn, teletransportarse, etc. durante la pelea) y la brujula se
+ * actualiza con su posicion EN VIVO. Solo se oculta cuando esas entidades
+ * de verdad mueren/desaparecen, nunca por alejarse.
  *
  * Costo: el escaneo de entidades es sobre chunks YA cargados (si el chunk
  * de la arena no esta cargado -- ej. nadie cerca y la pelea no empezo --
@@ -43,9 +48,10 @@ object BossArenaCompass {
     private const val DETECTION_INTERVAL_TICKS = 60
 
     private data class ArenaInfo(val id: String, val bossId: String, val pos: Vec3)
+    private class TrackedFight(val bossUuids: MutableSet<UUID>)
 
     private var arenas: List<ArenaInfo> = emptyList()
-    private val activeArenaIds: MutableSet<String> = mutableSetOf()
+    private val tracked: MutableMap<String, TrackedFight> = mutableMapOf()
     private var ticksSinceDetect = 0
 
     fun register() {
@@ -95,23 +101,36 @@ object BossArenaCompass {
         val level = server.overworld()
 
         for (arena in arenas) {
-            val aabb = AABB(
-                arena.pos.x - DETECTION_RADIUS, arena.pos.y - DETECTION_RADIUS, arena.pos.z - DETECTION_RADIUS,
-                arena.pos.x + DETECTION_RADIUS, arena.pos.y + DETECTION_RADIUS, arena.pos.z + DETECTION_RADIUS
-            )
-            val hasBoss = level.getEntitiesOfClass(LivingEntity::class.java, aabb) { entity ->
-                entity !is Player && entity.isAlive && entity.isCustomNameVisible && entity.customName != null
-            }.isNotEmpty()
+            val fight = tracked[arena.id]
+            val label = arena.bossId.replaceFirstChar { it.uppercase() }
 
-            if (hasBoss) {
-                if (activeArenaIds.add(arena.id)) {
-                    BossCompassSidebar.show(arena.id, arena.bossId.replaceFirstChar { it.uppercase() }, arena.pos)
+            if (fight == null) {
+                val found = findQualifyingEntities(level, arena.pos)
+                if (found.isNotEmpty()) {
+                    tracked[arena.id] = TrackedFight(found.map { it.uuid }.toMutableSet())
+                    BossCompassSidebar.show(arena.id, label, found.first().position())
                 }
-            } else {
-                if (activeArenaIds.remove(arena.id)) {
-                    BossCompassSidebar.hide(arena.id)
-                }
+                continue
             }
+
+            val alive = fight.bossUuids.mapNotNull { uuid -> level.getEntity(uuid) as? LivingEntity }
+                .filter { it.isAlive }
+            if (alive.isEmpty()) {
+                tracked.remove(arena.id)
+                BossCompassSidebar.hide(arena.id)
+            } else {
+                BossCompassSidebar.show(arena.id, label, alive.first().position())
+            }
+        }
+    }
+
+    private fun findQualifyingEntities(level: net.minecraft.server.level.ServerLevel, pos: Vec3): List<LivingEntity> {
+        val aabb = AABB(
+            pos.x - DETECTION_RADIUS, pos.y - DETECTION_RADIUS, pos.z - DETECTION_RADIUS,
+            pos.x + DETECTION_RADIUS, pos.y + DETECTION_RADIUS, pos.z + DETECTION_RADIUS
+        )
+        return level.getEntitiesOfClass(LivingEntity::class.java, aabb) { entity ->
+            entity !is Player && entity.isAlive && entity.isCustomNameVisible && entity.customName != null
         }
     }
 }
