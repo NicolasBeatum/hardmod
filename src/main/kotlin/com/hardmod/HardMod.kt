@@ -12,6 +12,7 @@ import com.hardmod.feature.PvpScheduler
 import com.hardmod.feature.ServerShutdownScheduler
 import com.hardmod.feature.trialrewards.TrialRewardConfig
 import com.hardmod.feature.trialrewards.TrialRewardLootModifier
+import com.hardmod.gui.LivesLeaderboardGui
 import net.fabricmc.api.ModInitializer
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerLifecycleEvents
 
@@ -33,6 +34,7 @@ object HardMod : ModInitializer {
         LivesEliminationAnnouncer.register()
         BossArenaCompass.register()
         TrialRewardLootModifier.register()
+        LivesLeaderboardGui.register()
         HardModCommands.register()
 
         ServerLifecycleEvents.SERVER_STARTING.register {

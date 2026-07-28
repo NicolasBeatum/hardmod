@@ -35,7 +35,7 @@ object BossCompassSidebar {
     private const val OBJECTIVE_NAME = "hardmod_boss_compass"
     private const val UPDATE_INTERVAL_TICKS = 10
 
-    data class CompassTarget(val label: String, val pos: Vec3)
+    data class CompassTarget(val label: String, val pos: Vec3, val arenaPos: Vec3, val healthPercent: Int)
 
     private val targets: MutableMap<String, CompassTarget> = mutableMapOf()
     private val playersShown: MutableSet<UUID> = mutableSetOf()
@@ -60,8 +60,8 @@ object BossCompassSidebar {
         }
     }
 
-    fun show(key: String, label: String, pos: Vec3) {
-        targets[key] = CompassTarget(label, pos)
+    fun show(key: String, label: String, pos: Vec3, arenaPos: Vec3, healthPercent: Int) {
+        targets[key] = CompassTarget(label, pos, arenaPos, healthPercent)
     }
 
     fun hide(key: String) {
@@ -101,18 +101,36 @@ object BossCompassSidebar {
 
     private fun updateLinesFor(player: ServerPlayer) {
         val blank: Optional<NumberFormat> = Optional.of(FixedFormat(Component.empty()))
-        var index = 0
-        for (target in targets.values) {
-            val line = "hardmod_boss_$index"
-            val component: Optional<Component> = Optional.of(buildLine(player, target))
+        val entries = targets.entries.toList()
+        var score = entries.size * 3
+        for ((key, target) in entries) {
             player.connection.send(
-                ClientboundSetScorePacket(line, OBJECTIVE_NAME, targets.size - index, component, blank)
+                ClientboundSetScorePacket(
+                    "hardmod_${key}_coords", OBJECTIVE_NAME, score--,
+                    Optional.of(buildCoordsLine(target)), blank
+                )
             )
-            index++
+            player.connection.send(
+                ClientboundSetScorePacket(
+                    "hardmod_${key}_dir", OBJECTIVE_NAME, score--,
+                    Optional.of(buildDirectionLine(player, target)), blank
+                )
+            )
+            player.connection.send(
+                ClientboundSetScorePacket(
+                    "hardmod_${key}_hp", OBJECTIVE_NAME, score--,
+                    Optional.of(buildHealthLine(target)), blank
+                )
+            )
         }
     }
 
-    private fun buildLine(player: ServerPlayer, target: CompassTarget): Component {
+    private fun buildCoordsLine(target: CompassTarget): Component {
+        return Component.literal("X:${target.arenaPos.x.toInt()} Z:${target.arenaPos.z.toInt()}")
+            .withStyle(ChatFormatting.DARK_GRAY)
+    }
+
+    private fun buildDirectionLine(player: ServerPlayer, target: CompassTarget): Component {
         val dx = target.pos.x - player.x
         val dz = target.pos.z - player.z
         val distance = sqrt(dx * dx + dz * dz).toInt()
@@ -122,6 +140,15 @@ object BossCompassSidebar {
         return Component.literal("$arrow ").withStyle(ChatFormatting.YELLOW)
             .append(Component.literal(target.label).withStyle(ChatFormatting.WHITE))
             .append(Component.literal(" ${distance}m").withStyle(ChatFormatting.GRAY))
+    }
+
+    private fun buildHealthLine(target: CompassTarget): Component {
+        val color = when {
+            target.healthPercent <= 25 -> ChatFormatting.RED
+            target.healthPercent <= 60 -> ChatFormatting.GOLD
+            else -> ChatFormatting.GREEN
+        }
+        return Component.literal("  ❤ ${target.healthPercent}%").withStyle(color)
     }
 
     private fun normalizeAngle(angle: Double): Double {

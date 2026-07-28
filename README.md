@@ -15,6 +15,11 @@ prueba y anuncios de cambios, para Minecraft 26.2 (Fabric).
 
 El jar queda en `build/libs/`.
 
+## Documentación
+
+Ver [docs/](docs/README.md) para cómo está armado por dentro: arquitectura,
+detalle de cada feature, y referencia completa de `/hardmod`.
+
 ## Distribución y actualizaciones
 
 Este mod se distribuye vía [hd-updater](https://github.com/NicolasBeatum/hd-updater),

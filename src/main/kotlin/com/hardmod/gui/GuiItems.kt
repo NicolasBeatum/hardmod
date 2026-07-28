@@ -1,6 +1,7 @@
 package com.hardmod.gui
 
 import com.hardmod.announce.Announcer
+import com.mojang.authlib.GameProfile
 import net.minecraft.core.component.DataComponents
 import net.minecraft.network.chat.Component
 import net.minecraft.world.SimpleContainer
@@ -8,6 +9,7 @@ import net.minecraft.world.item.DyeColor
 import net.minecraft.world.item.ItemStack
 import net.minecraft.world.item.Items
 import net.minecraft.world.item.component.ItemLore
+import net.minecraft.world.item.component.ResolvableProfile
 import net.minecraft.world.level.ItemLike
 
 /**
@@ -21,6 +23,24 @@ object GuiItems {
 
     fun stack(item: ItemLike, name: String, lore: List<String> = emptyList(), count: Int = 1): ItemStack {
         val stack = ItemStack(item, count)
+        stack.set(DataComponents.CUSTOM_NAME, Announcer.colorize(name))
+        if (lore.isNotEmpty()) {
+            stack.set(DataComponents.LORE, ItemLore(lore.map { Announcer.colorize(it) }))
+        }
+        return stack
+    }
+
+    /**
+     * Cabeza de jugador con su skin real. Si esta online se usa su
+     * GameProfile completo (ya trae la textura, sin ida y vuelta al session
+     * server de Mojang); si no, [ResolvableProfile.createUnresolved] resuelve
+     * la textura solo por nombre en segundo plano -- mismo mecanismo que usa
+     * vanilla para `/give @s player_head[profile=Notch]`.
+     */
+    fun playerHead(playerName: String, onlineProfile: GameProfile?, name: String, lore: List<String> = emptyList()): ItemStack {
+        val stack = ItemStack(Items.PLAYER_HEAD)
+        val profile = if (onlineProfile != null) ResolvableProfile.createResolved(onlineProfile) else ResolvableProfile.createUnresolved(playerName)
+        stack.set(DataComponents.PROFILE, profile)
         stack.set(DataComponents.CUSTOM_NAME, Announcer.colorize(name))
         if (lore.isNotEmpty()) {
             stack.set(DataComponents.LORE, ItemLore(lore.map { Announcer.colorize(it) }))

@@ -108,7 +108,8 @@ object BossArenaCompass {
                 val found = findQualifyingEntities(level, arena.pos)
                 if (found.isNotEmpty()) {
                     tracked[arena.id] = TrackedFight(found.map { it.uuid }.toMutableSet())
-                    BossCompassSidebar.show(arena.id, label, found.first().position())
+                    val target = found.first()
+                    BossCompassSidebar.show(arena.id, label, target.position(), arena.pos, healthPercentOf(target))
                 }
                 continue
             }
@@ -119,10 +120,14 @@ object BossArenaCompass {
                 tracked.remove(arena.id)
                 BossCompassSidebar.hide(arena.id)
             } else {
-                BossCompassSidebar.show(arena.id, label, alive.first().position())
+                val target = alive.first()
+                BossCompassSidebar.show(arena.id, label, target.position(), arena.pos, healthPercentOf(target))
             }
         }
     }
+
+    private fun healthPercentOf(entity: LivingEntity): Int =
+        if (entity.maxHealth <= 0f) 0 else ((entity.health / entity.maxHealth) * 100f).toInt().coerceIn(0, 100)
 
     private fun findQualifyingEntities(level: net.minecraft.server.level.ServerLevel, pos: Vec3): List<LivingEntity> {
         val aabb = AABB(
