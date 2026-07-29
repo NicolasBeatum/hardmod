@@ -4,6 +4,7 @@ import com.hardmod.announce.Announcer
 import com.hardmod.config.HardModConfig
 import com.hardmod.feature.EnchantTableLock
 import com.hardmod.feature.PvpScheduler
+import com.hardmod.feature.RaidControl
 import com.hardmod.feature.ServerShutdownScheduler
 import com.hardmod.feature.TridentMode
 import com.hardmod.feature.trialrewards.TrialRewardEditorGui
@@ -24,6 +25,7 @@ import net.minecraft.world.item.Items
 object AdminPanelGui {
 
     private val MOBCAP_STEPS = listOf(1.0, 1.5, 2.0, 3.0, 5.0, 8.0)
+    private val TOTEM_CHANCE_STEPS = listOf(0, 25, 50, 75, 100)
 
     private const val SLOT_ENCHANT_TABLE = 10
     private const val SLOT_VILLAGERS = 12
@@ -31,6 +33,8 @@ object AdminPanelGui {
     private const val SLOT_BURN = 16
     private const val SLOT_NETHER = 19
     private const val SLOT_END = 21
+    private const val SLOT_TOTEM = 23
+    private const val SLOT_RAIDS = 25
     private const val SLOT_MOBCAP_MONSTER = 28
     private const val SLOT_MOBCAP_CREATURE = 30
     private const val SLOT_REWARDS_NORMAL = 38
@@ -38,7 +42,7 @@ object AdminPanelGui {
     private const val SLOT_STATUS = 42
 
     private val OCCUPIED_SLOTS = setOf(
-        SLOT_ENCHANT_TABLE, SLOT_VILLAGERS, SLOT_TRIDENT, SLOT_BURN, SLOT_NETHER, SLOT_END,
+        SLOT_ENCHANT_TABLE, SLOT_VILLAGERS, SLOT_TRIDENT, SLOT_BURN, SLOT_NETHER, SLOT_END, SLOT_TOTEM, SLOT_RAIDS,
         SLOT_MOBCAP_MONSTER, SLOT_MOBCAP_CREATURE,
         SLOT_REWARDS_NORMAL, SLOT_REWARDS_OMINOUS, SLOT_STATUS
     )
@@ -79,6 +83,20 @@ object AdminPanelGui {
                 HardModConfig.setEndLocked(!HardModConfig.endLocked)
                 refreshItems(inv)
             }
+            menu.onSlot(SLOT_TOTEM) { _, _, button ->
+                val current = TOTEM_CHANCE_STEPS.indexOf(HardModConfig.totemActivationChance).let { if (it < 0) 0 else it }
+                val next = if (button == 1) {
+                    (current - 1 + TOTEM_CHANCE_STEPS.size) % TOTEM_CHANCE_STEPS.size
+                } else {
+                    (current + 1) % TOTEM_CHANCE_STEPS.size
+                }
+                HardModConfig.setTotemActivationChance(TOTEM_CHANCE_STEPS[next])
+                refreshItems(inv)
+            }
+            menu.onSlot(SLOT_RAIDS) { p, _, _ ->
+                RaidControl.setEnabled(p.level().server, !HardModConfig.raidsEnabled)
+                refreshItems(inv)
+            }
             menu.onSlot(SLOT_MOBCAP_MONSTER) { p, _, button -> cycleMobcap(p, inv, MobCategory.MONSTER, button) }
             menu.onSlot(SLOT_MOBCAP_CREATURE) { p, _, button -> cycleMobcap(p, inv, MobCategory.CREATURE, button) }
             menu.onSlot(SLOT_REWARDS_NORMAL) { p, _, _ -> TrialRewardEditorGui.open(p, "minecraft:chests/trial_chambers/reward") }
@@ -104,6 +122,8 @@ object AdminPanelGui {
             "&7Mesa de encantamientos: ${if (HardModConfig.enchantTableLocked) "&cbloqueada" else "&adisponible"}",
             "&7Aldeanos: ${if (HardModConfig.blockVillagers) "&celiminados" else "&aactivos"}",
             "&7Tridente: &f${tridentModeLabel(HardModConfig.tridentMode)}",
+            "&7Totems: &f${HardModConfig.totemActivationChance}% de activacion",
+            "&7Raids: ${if (HardModConfig.raidsEnabled) "&aactivadas" else "&cdesactivadas"}",
             "&7Quemadura permanente: ${if (HardModConfig.permanentBurn) "&4activada" else "&aapagada"}",
             "&7Nether: ${if (HardModConfig.netherLocked) "&csellado" else "&adisponible"}",
             "&7End: ${if (HardModConfig.endLocked) "&csellado" else "&adisponible"}",
@@ -116,9 +136,9 @@ object AdminPanelGui {
     }
 
     private fun tridentModeLabel(mode: TridentMode): String = when (mode) {
-        TridentMode.OFF -> "sin restriccion"
-        TridentMode.BLOCK_ALL -> "bloqueado del todo"
-        TridentMode.MAX_UNBREAKING_III -> "solo Unbreaking III maximo"
+        TridentMode.OFF -> "mesa sin restriccion"
+        TridentMode.BLOCK_ALL -> "mesa bloqueada"
+        TridentMode.MAX_UNBREAKING_III -> "mesa solo Unbreaking III maximo; yunque libre"
     }
 
     private fun refreshItems(inv: SimpleContainer) {
@@ -148,8 +168,8 @@ object AdminPanelGui {
             Items.TRIDENT, "&c&lEncantamientos de Tridente",
             listOf(
                 "&8▪ &7Modo actual: &f${tridentModeLabel(HardModConfig.tridentMode)}",
-                "&7Sin restriccion / bloqueado del todo /",
-                "&7solo puede salir Unbreaking III.",
+                "&7La restriccion solo afecta la mesa.",
+                "&7El yunque permite Riptide y los demas.",
                 "",
                 "&e▶ Click izq/der para ciclar"
             )
@@ -181,6 +201,26 @@ object AdminPanelGui {
                 "&8▪ &7Estado: ${if (HardModConfig.endLocked) "&c&lSELLADO" else "&a&lDISPONIBLE"}",
                 "&7Si esta sellado, el ojo de ender",
                 "&7no hace nada en el marco de portal.",
+                "",
+                "&e▶ Click para alternar"
+            )
+        ))
+        inv.setItem(SLOT_TOTEM, GuiItems.stack(
+            Items.TOTEM_OF_UNDYING, "&c&lTotems",
+            listOf(
+                "&8▪ &7Probabilidad: &f${HardModConfig.totemActivationChance}%",
+                "&70% los desactiva por completo;",
+                "&7100% conserva el comportamiento vanilla.",
+                "",
+                "&e▶ Click izq/der para subir/bajar"
+            )
+        ))
+        inv.setItem(SLOT_RAIDS, GuiItems.stack(
+            Items.OMINOUS_BOTTLE, "&c&lRaids",
+            listOf(
+                "&8▪ &7Estado: ${if (HardModConfig.raidsEnabled) "&a&lACTIVADAS" else "&c&lDESACTIVADAS"}",
+                "&7Al desactivarlas se detienen las",
+                "&7raids activas y no comienzan nuevas.",
                 "",
                 "&e▶ Click para alternar"
             )

@@ -1,6 +1,7 @@
 package com.hardmod.feature
 
 import com.hardmod.announce.Announcer
+import com.hardmod.config.HardModConfig
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerBossEvent
@@ -12,17 +13,15 @@ import java.time.ZoneId
 import java.util.UUID
 
 /**
- * Cierre diario del servidor a las 23:59 (hora local de la maquina). La
- * ultima hora antes del cierre se avisa con una bossbar de cuenta
+ * Cierre diario del servidor por defecto a las 02:00 (hora local de la maquina). La
+ * ultimas dos horas antes del cierre se avisan con una bossbar de cuenta
  * regresiva. /hardmod server extend <minutos> corre el cierre hacia
- * adelante (ej. si cerraba a las 23:59 y se extiende 30m, pasa a cerrar
- * a las 00:29 del dia siguiente).
+ * adelante (ej. si cerraba a las 02:00 y se extiende 30m, pasa a cerrar
+ * a las 02:30). La hora de cierre diaria se configura con /hardmod server time <hora> [minuto].
  */
 object ServerShutdownScheduler {
 
-    private const val SHUTDOWN_HOUR = 23
-    private const val SHUTDOWN_MINUTE = 59
-    private const val WARNING_MINUTES = 60L
+    private const val WARNING_MINUTES = 120L
     private const val CHECK_INTERVAL_TICKS = 20
 
     private val zone = ZoneId.systemDefault()
@@ -48,6 +47,11 @@ object ServerShutdownScheduler {
         }
     }
 
+    /** Reinicia el objetivo de cierre para que se recalcule con la configuracion actual de hora/minuto. */
+    fun resetTarget() {
+        targetEpochMillis = 0L
+    }
+
     /** Suma minutos al cierre programado. Devuelve la nueva hora de cierre ya formateada, para el feedback del admin. */
     fun extend(minutes: Int): String {
         ensureTarget(System.currentTimeMillis())
@@ -68,7 +72,7 @@ object ServerShutdownScheduler {
 
     private fun nextShutdownTarget(nowMillis: Long): Long {
         val now = LocalDateTime.ofInstant(Instant.ofEpochMilli(nowMillis), zone)
-        var target = LocalDateTime.of(now.toLocalDate(), LocalTime.of(SHUTDOWN_HOUR, SHUTDOWN_MINUTE))
+        var target = LocalDateTime.of(now.toLocalDate(), LocalTime.of(HardModConfig.shutdownHour, HardModConfig.shutdownMinute))
         if (!target.isAfter(now)) target = target.plusDays(1)
         return target.atZone(zone).toInstant().toEpochMilli()
     }

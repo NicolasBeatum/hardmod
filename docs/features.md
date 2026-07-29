@@ -59,24 +59,39 @@ Elimina el spawn de aldeanos — tanto en aldeas generadas por el mundo como
 
 ## Tridente
 
-Restringe qué encantamientos puede tener un tridente, en 3 modos.
+Restringe qué encantamientos ofrece la mesa para un tridente, en 3 modos.
 
-- **Default**: `MAX_UNBREAKING_III` (solo permite Unbreaking, tope nivel 3).
-- **Modos**: `OFF` (sin restricción), `BLOCK_ALL` (no puede tener ningún
-  encantamiento), `MAX_UNBREAKING_III`.
+- **Default**: `MAX_UNBREAKING_III` (la mesa solo ofrece Unbreaking, tope nivel 3).
+- **Modos de mesa**: `OFF` (sin restricción), `BLOCK_ALL` (la mesa no puede
+  encantarlo), `MAX_UNBREAKING_III`.
+- **Yunque libre**: los libros de Riptide, Loyalty, Channeling, Mending y demás
+  funcionan normalmente; la restricción no filtra encantamientos aplicados por
+  yunque.
 - **Archivos**: [`TridentEnchantControl.kt`](../src/main/kotlin/com/hardmod/feature/TridentEnchantControl.kt),
-  [`EnchantmentTablePoolMixin.java`](../src/main/java/com/hardmod/mixin/EnchantmentTablePoolMixin.java),
-  [`ItemStackMixin.java`](../src/main/java/com/hardmod/mixin/ItemStackMixin.java).
-- **Cómo — dos capas**:
-  1. `filterPool` filtra el pool de candidatos de `EnchantmentHelper.selectEnchantment`
-     (lo que la mesa usa para calcular las 3 opciones) ANTES del roll — las
-     opciones bloqueadas ni aparecen como posibilidad, no es "se aplicó y se
-     corrigió después".
-  2. `filter` es la red de seguridad final sobre `ItemStack.set(ENCHANTMENTS)`
-     — el punto donde terminan TODOS los caminos que aplican un encantamiento
-     (yunque, `/enchant`, loot functions), por si alguno no pasa por el pool de
-     la mesa.
+  [`EnchantmentTablePoolMixin.java`](../src/main/java/com/hardmod/mixin/EnchantmentTablePoolMixin.java).
+- **Cómo**: `filterPool` filtra el pool de candidatos de
+  `EnchantmentHelper.selectEnchantment` antes del roll. Ese método corresponde
+  a la mesa; el yunque no pasa por este filtro.
 - **Comando**: `/hardmod trident off|block|unbreaking3`.
+
+## Tótems
+
+La activación del tótem de inmortalidad tiene una probabilidad configurable.
+
+- **Default**: 100% (comportamiento vanilla).
+- **Rango**: 0% impide toda activación; 100% conserva el comportamiento vanilla.
+  Si el sorteo falla, el tótem no se consume.
+- **Archivos**: [`TotemControl.kt`](../src/main/kotlin/com/hardmod/feature/TotemControl.kt),
+  [`TotemActivationMixin.java`](../src/main/java/com/hardmod/mixin/TotemActivationMixin.java).
+- **Comando**: `/hardmod totem chance <0-100>`.
+
+## Raids
+
+- **Default**: desactivadas.
+- Usa la gamerule vanilla `raids`; al desactivarla se detienen las raids
+  existentes y no comienzan nuevas.
+- **Archivo**: [`RaidControl.kt`](../src/main/kotlin/com/hardmod/feature/RaidControl.kt).
+- **Comando**: `/hardmod raids on|off`.
 
 ## Quemadura permanente
 
@@ -117,15 +132,15 @@ niveles (creación del portal + teletransporte, por si acaso).
 
 ## PVP programado
 
-PVP apagado por defecto. Un trigger aleatorio lo activa una vez al día.
+PVP apagado por defecto. Después de las 19:00 intenta activarse periódicamente.
 
 - **Default**: inactivo.
-- **Ventana de disparo**: una vez por día, en un instante al azar entre las
-  19:00 y las 19:30 (hora del sistema del servidor). Si el server no estaba
-  corriendo en ese rango ese día, se descarta — no dispara con retraso, ni
-  reintenta hasta el día siguiente.
-- **Duración**: aleatoria entre 15 y 90 minutos por sesión.
-- **Enfriamiento**: mínimo 1 hora sin PVP después de que termina una sesión
+- **Sorteo automático**: desde las 19:00 hasta la hora de cierre diaria, cada
+  15 minutos hace un sorteo con 25% de probabilidad de activación. Si sale
+  positivo y no hay una sesión
+  activa ni un enfriamiento pendiente, activa el PVP.
+- **Duración**: aleatoria entre 15 y 60 minutos por sesión.
+- **Enfriamiento**: mínimo 30 minutos sin PVP después de que termina una sesión
   antes de poder volver a dispararse.
 - **Bossbar**: visible desde el momento en que se activa hasta que termina
   (roja, cuenta regresiva `MM:SS`, progreso relativo a la duración total de
@@ -135,22 +150,23 @@ PVP apagado por defecto. Un trigger aleatorio lo activa una vez al día.
   action bar al atacante.
 - **Archivos**: [`PvpScheduler.kt`](../src/main/kotlin/com/hardmod/feature/PvpScheduler.kt).
 - **Comandos**: `/hardmod pvp on [minutos]` (activación manual, ignora el
-  enfriamiento; sin minutos, sortea entre 15 y 90), `/hardmod pvp off`
+  enfriamiento; sin minutos, sortea entre 15 y 60), `/hardmod pvp off`
   (cancela y arranca el enfriamiento normal).
-- **Nota de diseño**: la ventana de disparo se recalcula SOLO en base a "ahora"
-  (nunca retroactiva) — evita que un restart tardío del server (ej. probando
-  después de las 19:30) dispare el PVP de inmediato en cada reinicio.
+- **Nota de diseño**: cada cuarto de hora se procesa una sola vez. Los sorteos
+  que coincidan con una sesión activa o con el enfriamiento se omiten; no se
+  acumulan ni se ejecutan con retraso.
 
 ## Cierre diario del servidor
 
 El servidor se detiene solo, todos los días, a una hora fija.
 
-- **Default**: 23:59, hora del sistema del servidor.
-- **Bossbar**: visible la última hora antes del cierre (amarilla, cuenta
+- **Default**: 02:00, hora del sistema del servidor.
+- **Configuración**: `/hardmod server time <hora> [minuto]` permite cambiar la hora de cierre diaria en caliente (persiste en `config/hardmod/config.json`).
+- **Bossbar**: visible las últimas 2 horas antes del cierre (amarilla, cuenta
   regresiva `H:MM:SS` o `MM:SS`).
 - **Extensión**: `/hardmod server extend <minutos>` corre el cierre hacia
-  adelante (ej. si cerraba a las 23:59 y se extiende 30, pasa a cerrar a las
-  00:29 del día siguiente).
+  adelante (ej. si cerraba a las 02:00 y se extiende 30, pasa a cerrar a las
+  02:30).
 - **Archivos**: [`ServerShutdownScheduler.kt`](../src/main/kotlin/com/hardmod/feature/ServerShutdownScheduler.kt).
 - **Cómo se detiene**: `server.halt(false)` — el mismo método que usa
   internamente el comando `/stop` de vanilla.

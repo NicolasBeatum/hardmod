@@ -3,6 +3,7 @@ package com.hardmod.config
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import com.hardmod.feature.ServerShutdownScheduler
 import com.hardmod.feature.TridentMode
 import net.fabricmc.loader.api.FabricLoader
 import org.slf4j.LoggerFactory
@@ -23,7 +24,8 @@ import java.util.concurrent.ConcurrentHashMap
  * Defaults pensados para un mundo hardcore recien empezado: mesa de
  * encantamientos BLOQUEADA, aldeanos ELIMINADOS, mobcap normal (x1),
  * tridente limitado a Unbreaking III, quemadura permanente apagada,
- * Nether y End BLOQUEADOS (hasta que un admin los active).
+ * Nether y End BLOQUEADOS (hasta que un admin los active), totems al 100% vanilla,
+ * raids desactivadas y hora de cierre 02:00.
  */
 object HardModConfig {
 
@@ -56,6 +58,19 @@ object HardModConfig {
         private set
 
     @Volatile var endLocked: Boolean = true
+        private set
+
+    /** Probabilidad porcentual de que un totem intente salvar a su portador. 0 = desactivado, 100 = vanilla. */
+    @Volatile var totemActivationChance: Int = 100
+        private set
+
+    @Volatile var raidsEnabled: Boolean = false
+        private set
+
+    @Volatile var shutdownHour: Int = 2
+        private set
+
+    @Volatile var shutdownMinute: Int = 0
         private set
 
     private fun configFile(): Path =
@@ -91,6 +106,10 @@ object HardModConfig {
                 announceSoundId = json.get("announceSoundId")?.asString ?: "minecraft:entity.experience_orb.pickup"
                 netherLocked = json.get("netherLocked")?.asBoolean ?: true
                 endLocked = json.get("endLocked")?.asBoolean ?: true
+                totemActivationChance = (json.get("totemActivationChance")?.asInt ?: 100).coerceIn(0, 100)
+                raidsEnabled = json.get("raidsEnabled")?.asBoolean ?: false
+                shutdownHour = json.get("shutdownHour")?.asInt ?: 2
+                shutdownMinute = json.get("shutdownMinute")?.asInt ?: 0
             }
             LOGGER.info("[hardmod] Config cargada de {}", file)
         } catch (e: Exception) {
@@ -114,6 +133,10 @@ object HardModConfig {
             json.addProperty("announceSoundId", announceSoundId)
             json.addProperty("netherLocked", netherLocked)
             json.addProperty("endLocked", endLocked)
+            json.addProperty("totemActivationChance", totemActivationChance)
+            json.addProperty("raidsEnabled", raidsEnabled)
+            json.addProperty("shutdownHour", shutdownHour)
+            json.addProperty("shutdownMinute", shutdownMinute)
             Files.newBufferedWriter(file, StandardCharsets.UTF_8).use { writer -> GSON.toJson(json, writer) }
         } catch (e: Exception) {
             LOGGER.error("[hardmod] No se pudo guardar {}: {}", file, e.toString())
@@ -155,6 +178,23 @@ object HardModConfig {
 
     fun setEndLocked(locked: Boolean) {
         endLocked = locked
+        save()
+    }
+
+    fun setTotemActivationChance(chance: Int) {
+        totemActivationChance = chance.coerceIn(0, 100)
+        save()
+    }
+
+    fun setRaidsEnabled(enabled: Boolean) {
+        raidsEnabled = enabled
+        save()
+    }
+
+    fun setShutdownTime(hour: Int, minute: Int) {
+        shutdownHour = hour.coerceIn(0, 23)
+        shutdownMinute = minute.coerceIn(0, 59)
+        ServerShutdownScheduler.resetTarget()
         save()
     }
 }

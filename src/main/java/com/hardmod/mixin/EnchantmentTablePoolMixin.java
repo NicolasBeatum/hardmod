@@ -18,7 +18,7 @@ import java.util.stream.Stream;
  * para calcular las 3 opciones que se muestran/aplican) -- asi, para un
  * tridente en modo MAX_UNBREAKING_III, las demas opciones nunca llegan a
  * estar en la lista candidata; en BLOCK_ALL, la lista queda vacia y la
- * mesa no ofrece nada para ese item.
+ * mesa no ofrece nada para ese item. Esta restriccion no toca el yunque.
  */
 @Mixin(EnchantmentHelper.class)
 public abstract class EnchantmentTablePoolMixin {

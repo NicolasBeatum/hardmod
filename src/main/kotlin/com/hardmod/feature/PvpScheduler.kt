@@ -1,6 +1,7 @@
 package com.hardmod.feature
 
 import com.hardmod.announce.Announcer
+import com.hardmod.config.HardModConfig
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents
 import net.fabricmc.fabric.api.event.lifecycle.v1.ServerTickEvents
 import net.minecraft.server.MinecraftServer
@@ -8,7 +9,6 @@ import net.minecraft.server.level.ServerBossEvent
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.BossEvent
 import java.time.Instant
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
@@ -16,20 +16,21 @@ import java.util.UUID
 import kotlin.random.Random
 
 /**
- * PVP apagado por defecto. Un trigger aleatorio lo activa una vez al dia,
- * en un instante al azar entre las 19:00 y las 19:30 (hora local del
- * servidor), por una duracion aleatoria de 15 a 90 minutos. Al terminar
- * exige minimo 1 hora de enfriamiento antes de poder dispararse de nuevo.
+ * PVP apagado por defecto. Desde las 19:00 hasta el cierre diario del servidor,
+ * cada 15 minutos hace un sorteo de 25% para activarse por una duracion
+ * aleatoria de 15 a 60 minutos. Al terminar exige 30 minutos de enfriamiento
+ * antes de poder participar en otro sorteo.
  * Mientras dura la sesion activa se muestra una bossbar de cuenta
  * regresiva, desde el momento en que se activa hasta que termina.
  */
 object PvpScheduler {
 
-    private const val WINDOW_START_HOUR = 19
-    private const val WINDOW_LENGTH_MINUTES = 30L
+    private const val START_HOUR = 19
+    private const val ROLL_INTERVAL_MINUTES = 15L
+    private const val ACTIVATION_CHANCE_PERCENT = 25
     const val MIN_DURATION_MINUTES = 15L
-    const val MAX_DURATION_MINUTES = 90L
-    private const val COOLDOWN_MINUTES = 60L
+    const val MAX_DURATION_MINUTES = 60L
+    private const val COOLDOWN_MINUTES = 30L
     private const val CHECK_INTERVAL_TICKS = 20
 
     private val zone = ZoneId.systemDefault()
@@ -40,8 +41,7 @@ object PvpScheduler {
     private var activeUntilEpochMillis: Long = 0
     private var activeDurationMillis: Long = 0
     private var cooldownUntilEpochMillis: Long = 0
-    private var scheduledTriggerEpochMillis: Long? = null
-    private var scheduledForDate: LocalDate? = null
+    private var lastRollSlot: Long = Long.MIN_VALUE
 
     private var ticksSinceCheck = 0
 
@@ -91,7 +91,6 @@ object PvpScheduler {
 
     private fun tick(server: MinecraftServer) {
         val now = System.currentTimeMillis()
-        ensureScheduledTrigger(now)
 
         if (active) {
             val remainingMillis = activeUntilEpochMillis - now
@@ -103,42 +102,29 @@ object PvpScheduler {
             return
         }
 
-        val trigger = scheduledTriggerEpochMillis ?: return
-        if (now >= trigger) {
-            if (now >= cooldownUntilEpochMillis) {
-                val durationMinutes = Random.nextLong(MIN_DURATION_MINUTES, MAX_DURATION_MINUTES + 1)
-                activate(now, durationMinutes * 60_000L)
-            } else {
-                // No alcanzo el cooldown a tiempo para la ventana de hoy --
-                // se descarta, no se reintenta hasta mañana.
-                scheduledTriggerEpochMillis = null
-            }
-        }
+        val localNow = LocalDateTime.ofInstant(Instant.ofEpochMilli(now), zone)
+        if (!isAutomaticPeriod(localNow.toLocalTime())) return
+        if (localNow.minute % ROLL_INTERVAL_MINUTES.toInt() != 0) return
+
+        val rollIntervalMillis = ROLL_INTERVAL_MINUTES * 60_000L
+        val currentRollSlot = now / rollIntervalMillis
+        if (currentRollSlot == lastRollSlot) return
+        lastRollSlot = currentRollSlot
+
+        if (now < cooldownUntilEpochMillis || Random.nextInt(100) >= ACTIVATION_CHANCE_PERCENT) return
+
+        val durationMinutes = Random.nextLong(MIN_DURATION_MINUTES, MAX_DURATION_MINUTES + 1)
+        activate(now, durationMinutes * 60_000L)
     }
 
-    private fun ensureScheduledTrigger(nowMillis: Long) {
-        val now = LocalDateTime.ofInstant(Instant.ofEpochMilli(nowMillis), zone)
-        val today = now.toLocalDate()
-        if (scheduledForDate == today) return
-
-        val windowStart = LocalDateTime.of(today, LocalTime.of(WINDOW_START_HOUR, 0))
-        if (now.isBefore(windowStart)) return
-
-        val windowEnd = windowStart.plusMinutes(WINDOW_LENGTH_MINUTES)
-        scheduledForDate = today
-        if (!now.isBefore(windowEnd)) {
-            // La ventana de hoy ya paso (ej. el server no estaba corriendo a
-            // esa hora) -- no se dispara con retraso, se descarta hasta mañana.
-            scheduledTriggerEpochMillis = null
-            return
+    private fun isAutomaticPeriod(now: LocalTime): Boolean {
+        val start = LocalTime.of(START_HOUR, 0)
+        val shutdown = LocalTime.of(HardModConfig.shutdownHour, HardModConfig.shutdownMinute)
+        return if (shutdown <= start) {
+            now >= start || now < shutdown
+        } else {
+            now >= start && now < shutdown
         }
-
-        // Punto al azar entre "ahora" y el cierre de la ventana, nunca en el
-        // pasado -- si arrancas a las 19:20 el disparo cae entre 19:20 y 19:30.
-        val remainingMinutes = java.time.Duration.between(now, windowEnd).toMinutes().coerceAtLeast(1)
-        val offsetMinutes = Random.nextLong(0, remainingMinutes)
-        val triggerAt = now.plusMinutes(offsetMinutes)
-        scheduledTriggerEpochMillis = triggerAt.atZone(zone).toInstant().toEpochMilli()
     }
 
     private fun activate(nowMillis: Long, durationMillis: Long) {
@@ -150,7 +136,6 @@ object PvpScheduler {
     private fun deactivate(nowMillis: Long) {
         active = false
         cooldownUntilEpochMillis = nowMillis + COOLDOWN_MINUTES * 60_000L
-        scheduledTriggerEpochMillis = null
         hideBossBar()
     }
 

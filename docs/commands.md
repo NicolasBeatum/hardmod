@@ -16,24 +16,28 @@ requerir ningún permiso especial — cualquier jugador lo puede usar.
 | `/hardmod enchanttable unlock [segundos]` | Igual que `lock` pero al revés (desbloquea, opcionalmente por tiempo limitado). |
 | `/hardmod villagers on` | Permite el spawn de aldeanos de nuevo. |
 | `/hardmod villagers off` | Bloquea el spawn de aldeanos (aldeas generadas y runtime, con las excepciones de cría/cura — ver features.md). |
-| `/hardmod trident off` | Sin restricción de encantamientos en el tridente. |
-| `/hardmod trident block` | El tridente no puede tener ningún encantamiento. |
-| `/hardmod trident unbreaking3` | El tridente solo puede tener Unbreaking, tope nivel 3. |
+| `/hardmod trident off` | La mesa no restringe los encantamientos del tridente. |
+| `/hardmod trident block` | La mesa no puede encantar tridentes; el yunque sigue libre. |
+| `/hardmod trident unbreaking3` | En la mesa, el tridente solo puede obtener Unbreaking (máximo III); el yunque sigue libre. |
+| `/hardmod totem chance <0-100>` | Configura la probabilidad de activación del tótem; 0 lo desactiva y 100 conserva vanilla. |
+| `/hardmod raids on` | Activa las raids. |
+| `/hardmod raids off` | Detiene y desactiva las raids. |
 | `/hardmod burn on` | Activa la quemadura permanente (no se apaga sola, solo con agua). |
 | `/hardmod burn off` | Vuelve la quemadura a la normalidad de vanilla. |
 | `/hardmod nether lock` | Sella el Nether (no se puede encender portal, y `entityInside` queda cancelado igual). |
 | `/hardmod nether unlock` | Habilita el Nether. |
 | `/hardmod end lock` | Sella el End (no se puede activar el portal con ojo de ender). |
 | `/hardmod end unlock` | Habilita el End. |
-| `/hardmod pvp on [minutos]` | Activa el PVP manualmente (ignora el enfriamiento). Sin `minutos`, sortea una duración entre 15 y 90. |
-| `/hardmod pvp off` | Cancela el PVP activo y arranca el enfriamiento de 1 hora normal. |
+| `/hardmod pvp on [minutos]` | Activa el PVP manualmente (ignora el enfriamiento). Sin `minutos`, sortea una duración entre 15 y 60. |
+| `/hardmod pvp off` | Cancela el PVP activo y arranca el enfriamiento de 30 minutos normal. |
 | `/hardmod server extend <minutos>` | Suma minutos al cierre diario programado del servidor. |
+| `/hardmod server time <hora> [minuto]` | Cambia la hora de cierre diario del servidor (ej. `2` o `2 30`). |
 | `/hardmod arenas reload` | Vuelve a leer `config/harddeathmobs/arenas/*.json` del disco (usar después de un `/hdm arena <id> setpos` en caliente). |
 | `/hardmod rewards normal` | Abre el editor de recompensas de la vault de llave normal. |
 | `/hardmod rewards ominous` | Abre el editor de recompensas de la vault de llave ominosa. |
 | `/hardmod announce <mensaje>` | **Público.** Anuncia `<mensaje>` a todo el servidor con el banner + sonido. |
 | `/hardmod announce preset <nombre>` | **Público.** Anuncia el mensaje del preset y ejecuta sus comandos (con permiso de consola) — ver `config/hardmod/presets.json`. |
-| `/hardmod announce status` | **Público.** Anuncia el estado actual de TODOS los ajustes del mod (mesa, aldeanos, tridente, quemadura, nether, end, mobcap, PVP, hora de cierre del servidor). |
+| `/hardmod announce status` | **Público.** Anuncia el estado actual de TODOS los ajustes del mod (mesa, aldeanos, tridente, tótems, raids, quemadura, nether, end, mobcap, PVP, hora de cierre del servidor). |
 | `/lifestop` | **Público, sin permiso.** Abre el leaderboard de vidas (chest GUI con cabezas de jugadores reales). No es un subcomando de `/hardmod`. |
 
 ## Notas

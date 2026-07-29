@@ -34,6 +34,8 @@ src/main/kotlin/com/hardmod/
     ├── EnchantTableLock.kt              bloqueo temporal/indefinido de la mesa
     ├── VillagerSpawnControl.kt           predicados de bloqueo de aldeanos (dos caminos distintos)
     ├── TridentEnchantControl.kt          modos de restricción de encantamiento del tridente
+    ├── TotemControl.kt                   probabilidad configurable de activación de tótems
+    ├── RaidControl.kt                    toggle persistente sobre la gamerule raids
     ├── PermanentBurn.kt                  quemadura que no se apaga sola (solo jugadores)
     ├── DimensionLock.kt                  bloquea encender portal Nether / poner ojo en marco End
     ├── PvpScheduler.kt                   ventana de PVP diaria aleatoria + bossbar de cuenta regresiva
@@ -51,8 +53,8 @@ src/main/kotlin/com/hardmod/
 
 src/main/java/com/hardmod/mixin/
 ├── MobCategoryMixin.java                MobCategory.getMaxInstancesPerChunk -> MobcapControl.scale
-├── ItemStackMixin.java                   ItemStack.set(ENCHANTMENTS) -> TridentEnchantControl.filter (red de seguridad final)
 ├── EnchantmentTablePoolMixin.java         EnchantmentHelper.selectEnchantment -> TridentEnchantControl.filterPool (antes del roll)
+├── TotemActivationMixin.java              LivingEntity.checkTotemDeathProtection -> sorteo configurable
 ├── VillagerSpawnMixin.java                ServerLevel.addEntity -> VillagerSpawnControl.shouldBlock (runtime: cría/cura)
 ├── VillagerWorldGenSpawnMixin.java         ServerLevel.addWorldGenChunkEntities -> shouldBlockWorldGen (aldeas generadas)
 ├── MobConversionMixin.java                Mob.convertTo -> marca "cura de zombie aldeano en curso"
@@ -74,7 +76,7 @@ campo simplemente usa el default, no rompe).
 
 | Archivo | Contenido |
 |---|---|
-| `config.json` | Todos los toggles de `HardModConfig` (mobcap, mesa, aldeanos, tridente, quemadura, nether/end, sonido de anuncio). |
+| `config.json` | Todos los toggles de `HardModConfig` (mobcap, mesa, aldeanos, tridente, tótems, raids, quemadura, nether/end, sonido de anuncio). |
 | `presets.json` | Presets de `/hardmod announce preset <nombre>`: `{message, commands}` por preset (formato viejo — solo string — sigue soportado). |
 | `trial_rewards.json` | Overrides de recompensas de trial chambers por loot table id, más el rango de tiradas (`rollRanges`) guardado aparte. |
 
@@ -85,18 +87,13 @@ cambia algo (`save()` al final de cada `set*`).
 ## Principios de diseño repetidos
 
 - **Ningún toggle anuncia solo al chat.** Ver el README del índice de docs.
-- **Mixin en el punto de convergencia, no en cada camino por separado.**
-  Ejemplos: `ItemStackMixin` engancha `ItemStack.set(ENCHANTMENTS)` (donde
-  terminan TODOS los caminos que aplican un encantamiento) en vez de mesa +
-  yunque + `/enchant` + loot functions por separado; `VillagerSpawnMixin`
-  engancha el `addEntity` privado (donde delegan `addFreshEntity`/`addWithUUID`/
-  `addDuringTeleport`) en vez de solo `addFreshEntity`.
+- **Mixin en el punto exacto de la mecánica.** `TotemActivationMixin` engancha
+  `checkTotemDeathProtection`, mientras `VillagerSpawnMixin` engancha el
+  `addEntity` privado donde delegan los caminos de spawn runtime.
 - **Filtrar el pool ANTES del roll, no el resultado después.** El tridente se
-  filtra tanto en `EnchantmentTablePoolMixin` (el pool de candidatos de la mesa,
-  para que otras opciones ni aparezcan) como en `ItemStackMixin` (red de
-  seguridad final sobre cualquier otro camino — yunque, comando, loot). Mismo
-  patrón para los libros de trial chambers: el override reemplaza la loot table
-  entera, no filtra el resultado de un roll ya hecho.
+  filtra en `EnchantmentTablePoolMixin`, específicamente en el pool de la mesa,
+  para que otras opciones ni aparezcan sin afectar el yunque. Para los libros
+  de trial chambers, el override reemplaza la loot table entera.
 - **Server-side puro, sin tocar mods vecinos.** Ver la sección "Cero
   acoplamiento" del índice.
 - **GUIs "estilo plugin".** `ChestGuiMenu` bloquea cualquier slot propio que no

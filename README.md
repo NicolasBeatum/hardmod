@@ -1,7 +1,7 @@
 # HardMod
 
 Utilidades de endurecimiento server-side del pack Hard Death: mobcap, mesa de
-encantamientos, aldeanos, encantamientos de tridente, recompensas de cámaras de
+encantamientos, aldeanos, tridentes, tótems, raids, recompensas de cámaras de
 prueba y anuncios de cambios, para Minecraft 26.2 (Fabric).
 
 - **Minecraft**: 26.2 · **Loader**: Fabric · **Lenguaje**: Kotlin (fabric-language-kotlin)

@@ -6,6 +6,7 @@ import com.hardmod.config.HardModConfig
 import com.hardmod.feature.BossArenaCompass
 import com.hardmod.feature.EnchantTableLock
 import com.hardmod.feature.PvpScheduler
+import com.hardmod.feature.RaidControl
 import com.hardmod.feature.ServerShutdownScheduler
 import com.hardmod.feature.TridentMode
 import com.hardmod.feature.trialrewards.TrialRewardEditorGui
@@ -76,6 +77,21 @@ object HardModCommands {
                             .then(Commands.literal("unbreaking3").executes { setTrident(it, TridentMode.MAX_UNBREAKING_III) })
                     )
                     .then(
+                        Commands.literal("totem")
+                            .then(
+                                Commands.literal("chance")
+                                    .then(
+                                        Commands.argument("porcentaje", IntegerArgumentType.integer(0, 100))
+                                            .executes(::setTotemChance)
+                                    )
+                            )
+                    )
+                    .then(
+                        Commands.literal("raids")
+                            .then(Commands.literal("on").executes { setRaids(it, true) })
+                            .then(Commands.literal("off").executes { setRaids(it, false) })
+                    )
+                    .then(
                         Commands.literal("burn")
                             .then(Commands.literal("on").executes { setBurn(it, true) })
                             .then(Commands.literal("off").executes { setBurn(it, false) })
@@ -109,6 +125,17 @@ object HardModCommands {
                                     .then(
                                         Commands.argument("minutos", IntegerArgumentType.integer(1))
                                             .executes(::extendServer)
+                                    )
+                            )
+                            .then(
+                                Commands.literal("time")
+                                    .then(
+                                        Commands.argument("hora", IntegerArgumentType.integer(0, 23))
+                                            .executes { setServerTime(it, IntegerArgumentType.getInteger(it, "hora"), 0) }
+                                            .then(
+                                                Commands.argument("minuto", IntegerArgumentType.integer(0, 59))
+                                                    .executes { setServerTime(it, IntegerArgumentType.getInteger(it, "hora"), IntegerArgumentType.getInteger(it, "minuto")) }
+                                            )
                                     )
                             )
                     )
@@ -182,7 +209,20 @@ object HardModCommands {
 
     private fun setTrident(ctx: CommandContext<CommandSourceStack>, mode: TridentMode): Int {
         HardModConfig.setTridentMode(mode)
-        ctx.source.sendSuccess({ Component.literal("Encantamientos de tridente: ${tridentLabel(mode)}") }, true)
+        ctx.source.sendSuccess({ Component.literal("Mesa de encantamientos para tridente: ${tridentLabel(mode)}") }, true)
+        return 1
+    }
+
+    private fun setTotemChance(ctx: CommandContext<CommandSourceStack>): Int {
+        val chance = IntegerArgumentType.getInteger(ctx, "porcentaje")
+        HardModConfig.setTotemActivationChance(chance)
+        ctx.source.sendSuccess({ Component.literal("Probabilidad de activacion de totem: $chance%.") }, true)
+        return 1
+    }
+
+    private fun setRaids(ctx: CommandContext<CommandSourceStack>, enabled: Boolean): Int {
+        RaidControl.setEnabled(ctx.source.server, enabled)
+        ctx.source.sendSuccess({ Component.literal(if (enabled) "Raids activadas." else "Raids desactivadas.") }, true)
         return 1
     }
 
@@ -223,6 +263,14 @@ object HardModCommands {
         return 1
     }
 
+    private fun setServerTime(ctx: CommandContext<CommandSourceStack>, hour: Int, minute: Int): Int {
+        HardModConfig.setShutdownTime(hour, minute)
+        val formatted = "%02d:%02d".format(hour, minute)
+        val newTarget = ServerShutdownScheduler.targetLabel()
+        ctx.source.sendSuccess({ Component.literal("Hora de cierre del servidor configurada a las $formatted (proximo cierre: $newTarget).") }, true)
+        return 1
+    }
+
     private fun reloadArenas(ctx: CommandContext<CommandSourceStack>): Int {
         val count = BossArenaCompass.reload()
         ctx.source.sendSuccess({ Component.literal("Brujula de boss: $count arena(s) recargadas desde disco.") }, true)
@@ -240,6 +288,8 @@ object HardModCommands {
             "&7Mesa de encantamientos: ${if (HardModConfig.enchantTableLocked) "&cbloqueada" else "&adisponible"}",
             "&7Aldeanos: ${if (HardModConfig.blockVillagers) "&celiminados" else "&aactivos"}",
             "&7Tridente: &f${tridentLabel(HardModConfig.tridentMode)}",
+            "&7Totems: &f${HardModConfig.totemActivationChance}% de activacion",
+            "&7Raids: ${if (HardModConfig.raidsEnabled) "&aactivadas" else "&cdesactivadas"}",
             "&7Quemadura permanente: ${if (HardModConfig.permanentBurn) "&4activada" else "&aapagada"}",
             "&7Nether: ${if (HardModConfig.netherLocked) "&csellado" else "&adisponible"}",
             "&7End: ${if (HardModConfig.endLocked) "&csellado" else "&adisponible"}",
@@ -253,9 +303,9 @@ object HardModCommands {
     }
 
     private fun tridentLabel(mode: TridentMode): String = when (mode) {
-        TridentMode.OFF -> "sin restriccion"
-        TridentMode.BLOCK_ALL -> "bloqueado del todo"
-        TridentMode.MAX_UNBREAKING_III -> "solo Unbreaking III maximo"
+        TridentMode.OFF -> "mesa sin restriccion"
+        TridentMode.BLOCK_ALL -> "mesa bloqueada"
+        TridentMode.MAX_UNBREAKING_III -> "mesa solo Unbreaking III maximo; yunque libre"
     }
 
     private fun announcePreset(ctx: CommandContext<CommandSourceStack>): Int {

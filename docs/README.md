@@ -15,9 +15,10 @@
 
 Mod 100% server-side (sin `src/client`) para endurecer un mundo estilo hardcore:
 controla mobcap, bloquea/desbloquea la mesa de encantamientos, elimina aldeanos de
-aldeas generadas, restringe encantamientos de tridente, hace la quemadura
+aldeas generadas, restringe la mesa para tridentes sin bloquear el yunque,
+controla tótems y raids, hace la quemadura
 permanente opcional, sella Nether/End hasta que un admin los active, dispara una
-ventana de PVP aleatoria una vez al día, cierra el servidor a una hora fija
+sorteos periódicos de PVP después de las 19:00, cierra el servidor a una hora fija
 (extendible), anuncia cuando un jugador se queda sin vidas, muestra una brújula
 hacia los bosses de arena de `hard-death-mobs-mod`, y permite editar las
 recompensas de las vaults de trial chambers desde una chest GUI.
@@ -27,8 +28,8 @@ con el panel visual (`/hardmod panel`).
 
 ## Regla de oro: ningún toggle anuncia solo
 
-Ni un solo cambio de config (mesa, aldeanos, tridente, quemadura, mobcap, nether,
-end, PVP manual) dispara un mensaje automático al chat — ni por comando ni por el
+Ni un solo cambio de config (mesa, aldeanos, tridente, tótems, raids, quemadura,
+mobcap, nether, end, PVP manual) dispara un mensaje automático al chat — ni por comando ni por el
 panel. Todo lo que cambia un ajuste devuelve feedback solo al admin que lo
 ejecutó (`ctx.source.sendSuccess`). El único mecanismo que sí anuncia a **todo el
 mundo** es `/hardmod announce` (custom / preset / status) porque es una acción

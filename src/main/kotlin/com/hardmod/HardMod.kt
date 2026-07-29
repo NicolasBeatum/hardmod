@@ -9,6 +9,7 @@ import com.hardmod.feature.EnchantTableLock
 import com.hardmod.feature.LivesEliminationAnnouncer
 import com.hardmod.feature.PermanentBurn
 import com.hardmod.feature.PvpScheduler
+import com.hardmod.feature.RaidControl
 import com.hardmod.feature.ServerShutdownScheduler
 import com.hardmod.feature.trialrewards.TrialRewardConfig
 import com.hardmod.feature.trialrewards.TrialRewardLootModifier
@@ -30,6 +31,7 @@ object HardMod : ModInitializer {
         DimensionLock.register()
         PermanentBurn.register()
         PvpScheduler.register()
+        RaidControl.register()
         ServerShutdownScheduler.register()
         LivesEliminationAnnouncer.register()
         BossArenaCompass.register()
