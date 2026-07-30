@@ -5,6 +5,7 @@ import com.hardmod.announce.MessagePresets
 import com.hardmod.config.HardModConfig
 import com.hardmod.feature.BossArenaCompass
 import com.hardmod.feature.EnchantTableLock
+import com.hardmod.feature.MobcapControl
 import com.hardmod.feature.PvpScheduler
 import com.hardmod.feature.RaidControl
 import com.hardmod.feature.ServerShutdownScheduler
@@ -37,6 +38,15 @@ object HardModCommands {
                     .then(Commands.literal("panel").executes(::openPanel))
                     .then(
                         Commands.literal("mobcap")
+                            .then(
+                                Commands.literal("list")
+                                    .executes(::listMobcapSummary)
+                                    .then(
+                                        Commands.argument("categoria", StringArgumentType.word())
+                                            .suggests(::suggestCategories)
+                                            .executes(::listMobcapCategory)
+                                    )
+                            )
                             .then(
                                 Commands.argument("categoria", StringArgumentType.word())
                                     .suggests(::suggestCategories)
@@ -188,6 +198,40 @@ object HardModCommands {
         val multiplier = DoubleArgumentType.getDouble(ctx, "multiplicador")
         HardModConfig.setMobcapMultiplier(category, multiplier)
         ctx.source.sendSuccess({ Component.literal("Mobcap de '$category' en x$multiplier.") }, true)
+        return 1
+    }
+
+    private fun listMobcapSummary(ctx: CommandContext<CommandSourceStack>): Int {
+        val snapshot = MobcapControl.loadedSnapshot(ctx.source.server)
+        val lines = mutableListOf("&6&lMobcap actual &7(mobs cargados que cuentan)")
+        for (category in MobCategory.entries.filter { it != MobCategory.MISC }) {
+            val total = snapshot[category]?.values?.sum() ?: 0
+            val multiplier = HardModConfig.mobcapMultiplierFor(category.serializedName)
+            lines.add("&e${category.serializedName}: &f$total &7| multiplicador x$multiplier")
+        }
+        ctx.source.sendSuccess({ Announcer.colorize(lines.joinToString("\n")) }, false)
+        return 1
+    }
+
+    private fun listMobcapCategory(ctx: CommandContext<CommandSourceStack>): Int {
+        val categoryName = StringArgumentType.getString(ctx, "categoria")
+        val category = MobCategory.entries.firstOrNull { it.serializedName == categoryName }
+        if (category == null || category == MobCategory.MISC) {
+            ctx.source.sendFailure(Component.literal("Categoria de mobcap invalida: '$categoryName'."))
+            return 0
+        }
+
+        val counts = MobcapControl.loadedSnapshot(ctx.source.server)[category].orEmpty()
+        val total = counts.values.sum()
+        val lines = mutableListOf("&6&lMobcap ${category.serializedName}: &f$total mobs cargados")
+        if (counts.isEmpty()) {
+            lines.add("&7No hay mobs de esta categoria contando ahora.")
+        } else {
+            counts.entries
+                .sortedWith(compareByDescending<Map.Entry<String, Int>> { it.value }.thenBy { it.key })
+                .forEach { (typeId, count) -> lines.add("&e$typeId: &f$count") }
+        }
+        ctx.source.sendSuccess({ Announcer.colorize(lines.joinToString("\n")) }, false)
         return 1
     }
 

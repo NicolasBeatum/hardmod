@@ -16,6 +16,9 @@ Escala el límite de mobs que pueden existir a la vez, por categoría
   como el cap por-jugador (`LocalMobCapCalculator`), así que un solo hook escala
   los dos a la vez.
 - **Comando**: `/hardmod mobcap <categoria> <multiplicador>`.
+- **Diagnóstico**: `/hardmod mobcap list` resume todas las categorías y
+  `/hardmod mobcap list <categoria>` muestra el conteo por tipo. Excluye
+  `MISC` y mobs persistentes, igual que el conteo vanilla de `NaturalSpawner`.
 
 ## Mesa de encantamientos
 
@@ -190,15 +193,19 @@ Cuando un jugador se queda sin vidas (sistema de vidas de
 
 ## Brújula hacia bosses de arena
 
-Sidebar personalizada por jugador que apunta hacia el boss de una arena de
-`hard-death-mobs-mod` mientras la pelea está en curso.
+Sidebar personalizada por jugador que aparece 30 minutos antes del horario de
+una arena de `hard-death-mobs-mod`, apunta al punto de spawn y después sigue al
+boss durante la pelea.
 
 - **Archivos**: [`BossArenaCompass.kt`](../src/main/kotlin/com/hardmod/feature/BossArenaCompass.kt)
   (detección), [`BossCompassSidebar.kt`](../src/main/kotlin/com/hardmod/feature/BossCompassSidebar.kt)
   (la sidebar en sí).
-- **Detección (sin tocar `hard-death-mobs-mod`)**: lee (solo lectura) los
+- **Aviso previo (sin tocar `hard-death-mobs-mod`)**: lee (solo lectura) los
   archivos `config/harddeathmobs/arenas/*.json` de ese mod para saber la
-  posición (`setpos`) de cada arena — dato en disco, no código. Cada 3 segundos
+  posición (`setpos`), `triggerTimes`, `enabled` y horarios ya disparados.
+  Durante los 30 minutos anteriores a un horario pendiente muestra la dirección,
+  distancia, coordenadas X/Y/Z y cuenta regresiva.
+- **Detección de pelea**: cada 3 segundos
   (`DETECTION_INTERVAL_TICKS`), si una arena todavía no tiene pelea trackeada,
   escanea un radio de 40 bloques alrededor de esa posición buscando seres
   vivos con nombre personalizado visible (así es exactamente como ese mod
@@ -209,16 +216,14 @@ Sidebar personalizada por jugador que apunta hacia el boss de una arena de
   apague — solo se oculta cuando esas entidades puntuales de verdad mueren o
   desaparecen. (Antes re-detectaba por distancia cada vez y se apagaba
   prematuramente si el boss se alejaba — corregido.)
-- **Recarga manual**: la lista de arenas se lee del disco solo al arrancar el
-  server. Si se hace un `/hdm arena <id> setpos` con el server prendido, hay
-  que avisarle a HardMod con `/hardmod arenas reload` (si no, la brújula sigue
-  apuntando al setpos viejo).
-- **Contenido de la sidebar** (3 líneas por boss activo, actualizadas cada 10
-  ticks):
-  1. `X:123 Z:456` — el `setpos` fijo de la arena (donde se detectó el disparo).
+- **Carga de configuración**: lee los JSON una sola vez al encender el
+  servidor. `/hardmod arenas reload` permite forzar una recarga manual.
+- **Contenido de la sidebar** (3 líneas por arena, actualizadas cada 10 ticks):
+  1. `X:123 Y:64 Z:456` — punto exacto donde aparecerá el boss.
   2. `↗ Endermaster 234m` — flecha relativa a hacia dónde está mirando el
-     jugador (no un rumbo N/S/E/O fijo) + distancia en vivo al boss.
-  3. `❤ 78%` — vida del boss en % (rojo ≤25%, dorado ≤60%, verde el resto).
+     jugador + distancia al spawn; durante la pelea sigue al boss en vivo.
+  3. Antes del spawn: `⏳ El jefe spawneará en 29:59`. Durante la pelea:
+     `❤ 78%`.
 - **Por qué paquetes a mano en vez del scoreboard normal**: cada jugador
   necesita ver un contenido DISTINTO (su propia flecha, según su posición y
   hacia dónde mira) — el `Scoreboard` vanilla compartido manda el mismo texto a

@@ -41,7 +41,7 @@ src/main/kotlin/com/hardmod/
     ├── PvpScheduler.kt                   ventana de PVP diaria aleatoria + bossbar de cuenta regresiva
     ├── ServerShutdownScheduler.kt         cierre diario a hora fija + bossbar + extensión
     ├── LivesEliminationAnnouncer.kt       anuncia cuando un jugador llega a 0 vidas (lee scoreboard ajeno)
-    ├── BossArenaCompass.kt               detecta arenas de boss activas (lee JSON ajeno + escanea entidades)
+    ├── BossArenaCompass.kt               anticipa arenas 30m y detecta bosses (lee JSON ajeno + escanea entidades)
     ├── BossCompassSidebar.kt             sidebar de brújula personalizada por jugador (paquetes a mano)
     └── trialrewards/
         ├── TrialRewardConfig.kt          config/hardmod/trial_rewards.json (overrides por tabla)

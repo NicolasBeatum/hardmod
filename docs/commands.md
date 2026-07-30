@@ -12,6 +12,8 @@ requerir ningún permiso especial — cualquier jugador lo puede usar.
 |---|---|
 | `/hardmod panel` | Abre el panel visual (chest GUI) con todos los toggles. |
 | `/hardmod mobcap <categoria> <multiplicador>` | Fija el multiplicador de cap de spawn para esa `MobCategory` (ej. `monster`, `creature`). `multiplicador` acepta decimales (mínimo 0.1). |
+| `/hardmod mobcap list` | Muestra cuántos mobs cargados cuentan actualmente en cada categoría y su multiplicador. |
+| `/hardmod mobcap list <categoria>` | Desglosa por tipo los mobs cargados que cuentan para esa categoría (ej. `monster`). |
 | `/hardmod enchanttable lock [segundos]` | Bloquea la mesa de encantamientos. Sin `segundos`, queda bloqueada indefinido; con `segundos`, se desbloquea sola al pasar ese tiempo. |
 | `/hardmod enchanttable unlock [segundos]` | Igual que `lock` pero al revés (desbloquea, opcionalmente por tiempo limitado). |
 | `/hardmod villagers on` | Permite el spawn de aldeanos de nuevo. |

@@ -7,6 +7,7 @@ import net.minecraft.network.chat.numbers.NumberFormat
 import net.minecraft.network.protocol.game.ClientboundSetDisplayObjectivePacket
 import net.minecraft.network.protocol.game.ClientboundSetObjectivePacket
 import net.minecraft.network.protocol.game.ClientboundSetScorePacket
+import net.minecraft.network.protocol.game.ClientboundResetScorePacket
 import net.minecraft.server.MinecraftServer
 import net.minecraft.server.level.ServerPlayer
 import net.minecraft.world.phys.Vec3
@@ -35,9 +36,16 @@ object BossCompassSidebar {
     private const val OBJECTIVE_NAME = "hardmod_boss_compass"
     private const val UPDATE_INTERVAL_TICKS = 10
 
-    data class CompassTarget(val label: String, val pos: Vec3, val arenaPos: Vec3, val healthPercent: Int)
+    data class CompassTarget(
+        val label: String,
+        val pos: Vec3,
+        val arenaPos: Vec3,
+        val healthPercent: Int?,
+        val spawnAtEpochMillis: Long?
+    )
 
     private val targets: MutableMap<String, CompassTarget> = mutableMapOf()
+    private val removedTargetKeys: MutableSet<String> = mutableSetOf()
     private val playersShown: MutableSet<UUID> = mutableSetOf()
     private var ticksSinceUpdate = 0
 
@@ -60,12 +68,18 @@ object BossCompassSidebar {
         }
     }
 
-    fun show(key: String, label: String, pos: Vec3, arenaPos: Vec3, healthPercent: Int) {
-        targets[key] = CompassTarget(label, pos, arenaPos, healthPercent)
+    fun showActive(key: String, label: String, pos: Vec3, arenaPos: Vec3, healthPercent: Int) {
+        targets[key] = CompassTarget(label, pos, arenaPos, healthPercent, null)
+    }
+
+    fun showUpcoming(key: String, label: String, arenaPos: Vec3, spawnAtEpochMillis: Long) {
+        targets[key] = CompassTarget(label, arenaPos, arenaPos, null, spawnAtEpochMillis)
     }
 
     fun hide(key: String) {
-        targets.remove(key)
+        if (targets.remove(key) != null) {
+            removedTargetKeys.add(key)
+        }
     }
 
     private fun tick(server: MinecraftServer) {
@@ -78,6 +92,7 @@ object BossCompassSidebar {
                 }
                 playersShown.clear()
             }
+            removedTargetKeys.clear()
             return
         }
 
@@ -85,8 +100,12 @@ object BossCompassSidebar {
             if (playersShown.add(player.uuid)) {
                 addFor(player)
             }
+            for (key in removedTargetKeys) {
+                resetTargetLines(player, key)
+            }
             updateLinesFor(player)
         }
+        removedTargetKeys.clear()
         playersShown.retainAll(online.map { it.uuid }.toSet())
     }
 
@@ -97,6 +116,12 @@ object BossCompassSidebar {
 
     private fun removeFor(player: ServerPlayer) {
         player.connection.send(ClientboundSetObjectivePacket(objective, ClientboundSetObjectivePacket.METHOD_REMOVE))
+    }
+
+    private fun resetTargetLines(player: ServerPlayer, key: String) {
+        player.connection.send(ClientboundResetScorePacket("hardmod_${key}_coords", OBJECTIVE_NAME))
+        player.connection.send(ClientboundResetScorePacket("hardmod_${key}_dir", OBJECTIVE_NAME))
+        player.connection.send(ClientboundResetScorePacket("hardmod_${key}_hp", OBJECTIVE_NAME))
     }
 
     private fun updateLinesFor(player: ServerPlayer) {
@@ -119,14 +144,16 @@ object BossCompassSidebar {
             player.connection.send(
                 ClientboundSetScorePacket(
                     "hardmod_${key}_hp", OBJECTIVE_NAME, score--,
-                    Optional.of(buildHealthLine(target)), blank
+                    Optional.of(buildStatusLine(target)), blank
                 )
             )
         }
     }
 
     private fun buildCoordsLine(target: CompassTarget): Component {
-        return Component.literal("X:${target.arenaPos.x.toInt()} Z:${target.arenaPos.z.toInt()}")
+        return Component.literal(
+            "X:${target.arenaPos.x.toInt()} Y:${target.arenaPos.y.toInt()} Z:${target.arenaPos.z.toInt()}"
+        )
             .withStyle(ChatFormatting.DARK_GRAY)
     }
 
@@ -142,13 +169,23 @@ object BossCompassSidebar {
             .append(Component.literal(" ${distance}m").withStyle(ChatFormatting.GRAY))
     }
 
-    private fun buildHealthLine(target: CompassTarget): Component {
+    private fun buildStatusLine(target: CompassTarget): Component {
+        val spawnAt = target.spawnAtEpochMillis
+        if (spawnAt != null) {
+            val remainingSeconds = ((spawnAt - System.currentTimeMillis() + 999L) / 1000L).coerceAtLeast(0L)
+            val minutes = remainingSeconds / 60L
+            val seconds = remainingSeconds % 60L
+            return Component.literal("  ⏳ El jefe spawneará en %02d:%02d".format(minutes, seconds))
+                .withStyle(ChatFormatting.GOLD)
+        }
+
+        val healthPercent = target.healthPercent ?: 0
         val color = when {
-            target.healthPercent <= 25 -> ChatFormatting.RED
-            target.healthPercent <= 60 -> ChatFormatting.GOLD
+            healthPercent <= 25 -> ChatFormatting.RED
+            healthPercent <= 60 -> ChatFormatting.GOLD
             else -> ChatFormatting.GREEN
         }
-        return Component.literal("  ❤ ${target.healthPercent}%").withStyle(color)
+        return Component.literal("  ❤ $healthPercent%").withStyle(color)
     }
 
     private fun normalizeAngle(angle: Double): Double {

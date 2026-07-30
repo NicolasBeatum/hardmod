@@ -45,10 +45,10 @@ esos mods:
   `hdc_lives` que ya sincroniza `hard-death-core-mod` — scoreboard es una API
   100% vanilla, cualquier mod puede leerla.
 - **BossArenaCompass** lee los archivos `config/harddeathmobs/arenas/*.json`
-  (solo lectura, en disco) para saber la posición de cada arena, y detecta que
-  una pelea arrancó observando el mundo: busca seres vivos con nombre
-  personalizado visible cerca de esa posición (así es como ese mod marca a sus
-  bosses).
+  (solo lectura, en disco) para conocer horarios y posiciones. Muestra la
+  brújula 30 minutos antes apuntando al futuro spawn, y detecta que una pelea
+  arrancó observando el mundo: busca seres vivos con nombre personalizado
+  visible cerca de esa posición.
 
 Este patrón (observar datos/estado vanilla en vez de depender del código de otro
 mod) es intencional — mantiene a HardMod compilable e instalable solo, sin
