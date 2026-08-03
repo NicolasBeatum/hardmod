@@ -235,6 +235,21 @@ boss durante la pelea.
   cerca de la arena, no hay nada que iterar — prácticamente gratis).
 - **Comando**: `/hardmod arenas reload`.
 
+## Sidebar del mercado negro
+
+Cuando aparece el mercado negro de `npc-mod`, HardMod lo detecta en un máximo
+de un segundo y lo agrega a la sidebar compartida de eventos.
+
+- Solo muestra `Mercado negro abierto` y `Desaparece en MM:SS`.
+- No revela coordenadas, dirección, distancia ni dimensión.
+- Se oculta automáticamente cuando el mercado desaparece.
+- Convive con bosses activos y avisos previos en `✦ Eventos Activos`, sin que
+  una sidebar sobrescriba a la otra.
+- No tiene dependencia de compilación con `npc-mod`: se suscribe a sus eventos
+  `opened`/`closed`/`tick` y usa el snapshot como respaldo mediante Fabric
+  Object Share.
+- **Archivo**: [`BlackMarketSidebarTracker.kt`](../src/main/kotlin/com/hardmod/feature/BlackMarketSidebarTracker.kt).
+
 ## Leaderboard de vidas (`/lifestop`)
 
 Chest GUI **pública** (cualquiera la puede abrir, sin permiso de admin) con una

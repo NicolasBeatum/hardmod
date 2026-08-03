@@ -4,6 +4,7 @@ import com.hardmod.announce.MessagePresets
 import com.hardmod.command.HardModCommands
 import com.hardmod.config.HardModConfig
 import com.hardmod.feature.BossArenaCompass
+import com.hardmod.feature.BlackMarketSidebarTracker
 import com.hardmod.feature.DimensionLock
 import com.hardmod.feature.EnchantTableLock
 import com.hardmod.feature.LivesEliminationAnnouncer
@@ -35,6 +36,7 @@ object HardMod : ModInitializer {
         ServerShutdownScheduler.register()
         LivesEliminationAnnouncer.register()
         BossArenaCompass.register()
+        BlackMarketSidebarTracker.register()
         TrialRewardLootModifier.register()
         LivesLeaderboardGui.register()
         HardModCommands.register()

@@ -144,6 +144,7 @@ object BossArenaCompass {
     private fun tick(server: MinecraftServer) {
         if (arenas.isEmpty()) return
         val level = server.overworld()
+        val dimensionId = level.dimension().identifier().toString()
 
         for (arena in arenas) {
             val fight = tracked[arena.id]
@@ -154,11 +155,13 @@ object BossArenaCompass {
                 if (found.isNotEmpty()) {
                     tracked[arena.id] = TrackedFight(found.map { it.uuid }.toMutableSet())
                     val target = found.first()
-                    BossCompassSidebar.showActive(arena.id, label, target.position(), arena.pos, healthPercentOf(target))
+                    BossCompassSidebar.showActive(
+                        arena.id, label, target.position(), arena.pos, healthPercentOf(target), dimensionId
+                    )
                 } else {
                     val nextSpawn = nextUpcomingSpawn(arena, System.currentTimeMillis())
                     if (nextSpawn != null) {
-                        BossCompassSidebar.showUpcoming(arena.id, label, arena.pos, nextSpawn)
+                        BossCompassSidebar.showUpcoming(arena.id, label, arena.pos, nextSpawn, dimensionId)
                     } else {
                         BossCompassSidebar.hide(arena.id)
                     }
@@ -173,7 +176,9 @@ object BossArenaCompass {
                 BossCompassSidebar.hide(arena.id)
             } else {
                 val target = alive.first()
-                BossCompassSidebar.showActive(arena.id, label, target.position(), arena.pos, healthPercentOf(target))
+                BossCompassSidebar.showActive(
+                    arena.id, label, target.position(), arena.pos, healthPercentOf(target), dimensionId
+                )
             }
         }
     }

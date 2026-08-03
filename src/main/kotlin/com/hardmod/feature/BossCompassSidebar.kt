@@ -41,10 +41,17 @@ object BossCompassSidebar {
         val pos: Vec3,
         val arenaPos: Vec3,
         val healthPercent: Int?,
-        val spawnAtEpochMillis: Long?
+        val spawnAtEpochMillis: Long?,
+        val dimensionId: String?
+    )
+
+    data class SidebarNotice(
+        val label: String,
+        val endsAtEpochMillis: Long
     )
 
     private val targets: MutableMap<String, CompassTarget> = mutableMapOf()
+    private val notices: MutableMap<String, SidebarNotice> = mutableMapOf()
     private val removedTargetKeys: MutableSet<String> = mutableSetOf()
     private val playersShown: MutableSet<UUID> = mutableSetOf()
     private var ticksSinceUpdate = 0
@@ -54,7 +61,7 @@ object BossCompassSidebar {
         Scoreboard(),
         OBJECTIVE_NAME,
         ObjectiveCriteria.DUMMY,
-        Component.literal("⚔ Boss Cercano"),
+        Component.literal("✦ Eventos Activos"),
         ObjectiveCriteria.RenderType.INTEGER,
         false,
         null
@@ -68,16 +75,35 @@ object BossCompassSidebar {
         }
     }
 
-    fun showActive(key: String, label: String, pos: Vec3, arenaPos: Vec3, healthPercent: Int) {
-        targets[key] = CompassTarget(label, pos, arenaPos, healthPercent, null)
+    fun showActive(
+        key: String,
+        label: String,
+        pos: Vec3,
+        arenaPos: Vec3,
+        healthPercent: Int,
+        dimensionId: String
+    ) {
+        targets[key] = CompassTarget(label, pos, arenaPos, healthPercent, null, dimensionId)
     }
 
-    fun showUpcoming(key: String, label: String, arenaPos: Vec3, spawnAtEpochMillis: Long) {
-        targets[key] = CompassTarget(label, arenaPos, arenaPos, null, spawnAtEpochMillis)
+    fun showUpcoming(
+        key: String,
+        label: String,
+        arenaPos: Vec3,
+        spawnAtEpochMillis: Long,
+        dimensionId: String
+    ) {
+        targets[key] = CompassTarget(label, arenaPos, arenaPos, null, spawnAtEpochMillis, dimensionId)
+    }
+
+    fun showNotice(key: String, label: String, endsAtEpochMillis: Long) {
+        notices[key] = SidebarNotice(label, endsAtEpochMillis)
     }
 
     fun hide(key: String) {
-        if (targets.remove(key) != null) {
+        val removedTarget = targets.remove(key) != null
+        val removedNotice = notices.remove(key) != null
+        if (removedTarget || removedNotice) {
             removedTargetKeys.add(key)
         }
     }
@@ -85,7 +111,7 @@ object BossCompassSidebar {
     private fun tick(server: MinecraftServer) {
         val online = server.playerList.players
 
-        if (targets.isEmpty()) {
+        if (targets.isEmpty() && notices.isEmpty()) {
             if (playersShown.isNotEmpty()) {
                 for (player in online) {
                     if (player.uuid in playersShown) removeFor(player)
@@ -122,12 +148,15 @@ object BossCompassSidebar {
         player.connection.send(ClientboundResetScorePacket("hardmod_${key}_coords", OBJECTIVE_NAME))
         player.connection.send(ClientboundResetScorePacket("hardmod_${key}_dir", OBJECTIVE_NAME))
         player.connection.send(ClientboundResetScorePacket("hardmod_${key}_hp", OBJECTIVE_NAME))
+        player.connection.send(ClientboundResetScorePacket("hardmod_${key}_notice", OBJECTIVE_NAME))
+        player.connection.send(ClientboundResetScorePacket("hardmod_${key}_timer", OBJECTIVE_NAME))
     }
 
     private fun updateLinesFor(player: ServerPlayer) {
         val blank: Optional<NumberFormat> = Optional.of(FixedFormat(Component.empty()))
         val entries = targets.entries.toList()
-        var score = entries.size * 3
+        val noticeEntries = notices.entries.toList()
+        var score = entries.size * 3 + noticeEntries.size * 2
         for ((key, target) in entries) {
             player.connection.send(
                 ClientboundSetScorePacket(
@@ -148,6 +177,20 @@ object BossCompassSidebar {
                 )
             )
         }
+        for ((key, notice) in noticeEntries) {
+            player.connection.send(
+                ClientboundSetScorePacket(
+                    "hardmod_${key}_notice", OBJECTIVE_NAME, score--,
+                    Optional.of(Component.literal(notice.label).withStyle(ChatFormatting.LIGHT_PURPLE)), blank
+                )
+            )
+            player.connection.send(
+                ClientboundSetScorePacket(
+                    "hardmod_${key}_timer", OBJECTIVE_NAME, score--,
+                    Optional.of(buildNoticeTimerLine(notice)), blank
+                )
+            )
+        }
     }
 
     private fun buildCoordsLine(target: CompassTarget): Component {
@@ -158,6 +201,13 @@ object BossCompassSidebar {
     }
 
     private fun buildDirectionLine(player: ServerPlayer, target: CompassTarget): Component {
+        val playerDimension = player.level().dimension().identifier().toString()
+        if (target.dimensionId != null && target.dimensionId != playerDimension) {
+            return Component.literal("◈ ").withStyle(ChatFormatting.LIGHT_PURPLE)
+                .append(Component.literal(target.label).withStyle(ChatFormatting.WHITE))
+                .append(Component.literal(" otra dimension").withStyle(ChatFormatting.GRAY))
+        }
+
         val dx = target.pos.x - player.x
         val dz = target.pos.z - player.z
         val distance = sqrt(dx * dx + dz * dz).toInt()
@@ -179,13 +229,22 @@ object BossCompassSidebar {
                 .withStyle(ChatFormatting.GOLD)
         }
 
-        val healthPercent = target.healthPercent ?: 0
+        val healthPercent = target.healthPercent ?: return Component.empty()
         val color = when {
             healthPercent <= 25 -> ChatFormatting.RED
             healthPercent <= 60 -> ChatFormatting.GOLD
             else -> ChatFormatting.GREEN
         }
         return Component.literal("  ❤ $healthPercent%").withStyle(color)
+    }
+
+    private fun buildNoticeTimerLine(notice: SidebarNotice): Component {
+        val remainingSeconds = ((notice.endsAtEpochMillis - System.currentTimeMillis() + 999L) / 1000L)
+            .coerceAtLeast(0L)
+        val minutes = remainingSeconds / 60L
+        val seconds = remainingSeconds % 60L
+        return Component.literal("  Desaparece en %02d:%02d".format(minutes, seconds))
+            .withStyle(ChatFormatting.GOLD)
     }
 
     private fun normalizeAngle(angle: Double): Double {

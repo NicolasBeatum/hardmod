@@ -49,7 +49,8 @@ esos mods:
   brújula 30 minutos antes apuntando al futuro spawn, y detecta que una pelea
   arrancó observando el mundo: busca seres vivos con nombre personalizado
   visible cerca de esa posición.
+- **BlackMarketSidebarTracker** consume el snapshot y la suscripción de eventos
+  de `npc-mod`; muestra solo que el mercado está abierto y su tiempo restante.
 
-Este patrón (observar datos/estado vanilla en vez de depender del código de otro
-mod) es intencional — mantiene a HardMod compilable e instalable solo, sin
-volverse una dependencia dura de los otros mods del pack.
+Estas integraciones evitan dependencias de compilación entre mods y mantienen a
+HardMod compilable e instalable por separado.

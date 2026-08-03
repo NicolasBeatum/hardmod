@@ -42,6 +42,7 @@ src/main/kotlin/com/hardmod/
     ├── ServerShutdownScheduler.kt         cierre diario a hora fija + bossbar + extensión
     ├── LivesEliminationAnnouncer.kt       anuncia cuando un jugador llega a 0 vidas (lee scoreboard ajeno)
     ├── BossArenaCompass.kt               anticipa arenas 30m y detecta bosses (lee JSON ajeno + escanea entidades)
+    ├── BlackMarketSidebarTracker.kt       consume snapshot/eventos opcionales del mercado mediante Object Share
     ├── BossCompassSidebar.kt             sidebar de brújula personalizada por jugador (paquetes a mano)
     └── trialrewards/
         ├── TrialRewardConfig.kt          config/hardmod/trial_rewards.json (overrides por tabla)
